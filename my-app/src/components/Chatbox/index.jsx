@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import loadingGif from "./anime_load_chat.gif";
 import userAvatar from "./user.png";
-import botAvatar from "./bot.png";
+import botAvatar from "./streamGPT.png";
 import streamLogo from "./stream_logo.jpeg"; // ✅ โลโก้
 
 export default function Chatbox() {
   const [username, setUsername] = useState("");
-  const [selectedOption, setSelectedOption] = useState("Llama");
+  const [selectedOption, setSelectedOption] = useState("llama3.1");
   const [message, setMessage] = useState("");
   const [objChat, set_objChat] = useState([
     {
@@ -31,20 +31,19 @@ export default function Chatbox() {
     setMessage(event.target.value);
   };
 
-  const apiEndpoints = {
-    "Llama": `${import.meta.env.VITE_ANOTHER_API}/msgquery`,
-  };
+  const apiEndpoint = "http://10.10.10.92:8000/chat"; // ✅ API Endpoint
+
 
   const handleSendMessage = async () => {
     if (!username.trim()) {
       alert("กรุณากรอกชื่อของคุณก่อนส่งข้อความ");
       return;
     }
-
+  
     if (message.trim()) {
       setIsLoading(true);
       setIsError(false);
-
+  
       const newMessage = {
         user_id: "user",
         name: username,
@@ -52,27 +51,44 @@ export default function Chatbox() {
         create_at: Math.floor(Date.now() / 1000),
         type: "user",
       };
-
+  
       set_objChat((prevChat) => [...prevChat, newMessage]);
       setMessage("");
-
-      const apiEndpoint = apiEndpoints["Llama"];
-
+  
       try {
         setTimeout(async () => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // ✅ Timeout 1 นาที
+  
           const response = await axios.post(
             apiEndpoint,
-            { username: username, msg: message, model: "Llama" },
-            { headers: { "Content-Type": "application/json" } }
+            {
+              session_id: username,
+              input: message,
+              model: selectedOption,
+            },
+            {
+              headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
+            }
           );
-
+  
+          clearTimeout(timeoutId);
+  
           if (response.data.response) {
+            let botResponse = response.data.response;
+  
+            // ✅ กรณีเลือกโมเดล deepseek-r1 → กรองข้อความนอก <think>
+            if (selectedOption === "deepseek-r1") {
+              botResponse = botResponse.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+            }
+  
             set_objChat((prevChat) => [
               ...prevChat,
               {
                 user_id: "ai_response",
                 name: "StreamGPT",
-                msg: response.data.response,
+                msg: botResponse,
                 create_at: Math.floor(Date.now() / 1000),
                 type: "chat",
               },
@@ -88,6 +104,42 @@ export default function Chatbox() {
     }
   };
 
+
+  const handleClearSession = async () => {
+    if (!username.trim()) {
+      alert("กรุณากรอกชื่อผู้ใช้ก่อนล้าง session");
+      return;
+    }
+  
+    const apiClearSession = `http://10.10.10.92:8000/clear/${username}`;
+  
+    try {
+      const response = await axios.delete(apiClearSession);
+      
+      if (response.data.message === "Chat history cleared successfully") {
+        // ✅ ล้างแชทและตั้งข้อความต้อนรับใหม่
+        set_objChat([
+          {
+            user_id: "ai_response",
+            name: "StreamGPT",
+            msg: "สวัสดีครับ มีอะไรให้ StreamGPT ช่วยเหลือไหมครับ?",
+            create_at: Math.floor(Date.now() / 1000),
+            type: "chat",
+          },
+        ]);
+        alert(`Session ของ "${username}" ถูกล้างเรียบร้อยแล้ว!`);
+      } else {
+        alert("เกิดข้อผิดพลาด: ไม่ได้รับข้อความยืนยันจาก API");
+      }
+    } catch (error) {
+      console.error("Error clearing session:", error);
+      alert("ไม่สามารถล้าง session ได้ กรุณาลองใหม่!");
+    }
+  };
+  
+  
+
+  
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
@@ -109,8 +161,9 @@ export default function Chatbox() {
           <img src={streamLogo} alt="StreamGPT Logo" className="w-full max-w-40 h-auto rounded-lg" />
         </div>
 
-        {/* ✅ ช่องกรอกชื่อผู้ใช้ ตรงกลาง */}
-        <div className="flex-1 flex justify-center">
+        {/* ✅ ช่องกรอกชื่อผู้ใช้ พร้อมคำว่า "User" ด้านหน้า */}
+        <div className="flex-1 flex justify-center items-center space-x-2">
+          <span className="font-semibold text-gray-700">User:</span>
           <input
             type="text"
             className="block w-2/3 bg-white border border-gray-300 hover:border-gray-500 px-4 py-2 rounded shadow focus:outline-none focus:shadow-outline text-center"
@@ -118,6 +171,12 @@ export default function Chatbox() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
+            <button
+    className="btn bg-red-500 text-white px-4 py-2 rounded shadow hover:bg-red-600"
+    onClick={handleClearSession}
+  >
+    Clear Session
+  </button>
         </div>
 
         {/* ✅ เลือกโมเดล อยู่ทางขวา */}
@@ -127,7 +186,8 @@ export default function Chatbox() {
             value={selectedOption}
             onChange={handleSelect}
           >
-            <option value="Llama">Llama</option>
+            <option value="llama3.1">llama3.1</option>
+            <option value="deepseek-r1">deepseek-r1</option>
           </select>
         </div>
       </div>
@@ -189,10 +249,6 @@ export default function Chatbox() {
           onChange={handleMessageChange}
           onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
         />
-
-        {/* <button className="btn btn-outline" onClick={() => console.log("Attach file clicked")}>
-          📎
-        </button> */}
 
         <button className="btn btn-primary" onClick={handleSendMessage} disabled={!username.trim()}>
           Enter
