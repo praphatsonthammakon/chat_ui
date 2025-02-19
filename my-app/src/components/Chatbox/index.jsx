@@ -31,7 +31,7 @@ export default function Chatbox() {
     setMessage(event.target.value)
   }
 
-  const apiEndpoint = "http://10.10.10.92:8000/chat" // ✅ API Endpoint
+  const apiEndpoint = "http://10.10.10.92:8004/chat" // ✅ API Endpoint
 
   const handleDownloadChat = () => {
     if (objChat.length <= 1) {
@@ -143,7 +143,7 @@ export default function Chatbox() {
       return
     }
 
-    const apiClearSession = `http://10.10.10.92:8000/clear/${username}`
+    const apiClearSession = `http://10.10.10.92:8004/clear/${username}`
 
     try {
       const response = await axios.delete(apiClearSession)
@@ -233,6 +233,8 @@ export default function Chatbox() {
     >
       <option value="llama3.1">llama3.1</option>
       <option value="deepseek-r1">deepseek-r1</option>
+      <option value="gpt-4o">gpt-4o</option>
+      <option value="qwen2.5">qwen2.5</option>
     </select>
   </div>
 </div>
