@@ -273,6 +273,7 @@ export default function Chatbox() {
             <option value="deepseek-r1">deepseek-r1</option>
             <option value="gpt-4o">gpt-4o</option>
             <option value="qwen2.5">qwen2.5</option>
+            <option value="llama3.3">llama3.3</option>
           </select>
         </div>
       </div>
