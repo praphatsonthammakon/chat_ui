@@ -162,7 +162,7 @@ export default function Chatbox() {
     try {
       const response = await axios.delete(apiClearSession)
 
-      if (response.data.message === "Chat history cleared successfully") {
+      if (response.data.message === "Chat history and prompts cleared successfully") {
         // ✅ ล้างแชทและตั้งข้อความต้อนรับใหม่
         set_objChat([
           {
